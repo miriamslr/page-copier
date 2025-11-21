@@ -152,50 +152,62 @@ export const CloneForm = () => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
     
-    // Adicionar base tag para resolver URLs relativas
-    const base = doc.createElement("base");
-    base.href = baseUrl;
-    doc.head.insertBefore(base, doc.head.firstChild);
-    
-    // Converter todas as URLs relativas para absolutas
-    const urlBase = new URL(baseUrl);
-    
+    // Detectar ou criar <base> e garantir que a base aponte para o domínio original
+    let baseElement = doc.querySelector("base");
+    let effectiveBase: string;
+
+    try {
+      if (baseElement && baseElement.getAttribute("href")) {
+        // Se a página já tiver <base>, convertemos para URL absoluta usando a URL original
+        const existingHref = baseElement.getAttribute("href")!;
+        effectiveBase = new URL(existingHref, baseUrl).href;
+        baseElement.setAttribute("href", effectiveBase);
+      } else {
+        // Se não tiver <base>, criamos um baseado na URL original
+        baseElement = doc.createElement("base");
+        baseElement.href = baseUrl;
+        doc.head.insertBefore(baseElement, doc.head.firstChild);
+        effectiveBase = baseUrl;
+      }
+    } catch {
+      // Fallback: usa a URL original mesmo que algo dê errado
+      effectiveBase = baseUrl;
+    }
+
+    // Converter todas as URLs relativas para absolutas usando a base efetiva
+    const absolutizeUrl = (value: string | null): string | null => {
+      if (!value) return value;
+      if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("data:")) {
+        return value;
+      }
+      try {
+        return new URL(value, effectiveBase).href;
+      } catch {
+        return value;
+      }
+    };
+
     // Converter links CSS
-    doc.querySelectorAll('link[href]').forEach((link) => {
-      const href = link.getAttribute('href');
-      if (href && !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('data:')) {
-        try {
-          link.setAttribute('href', new URL(href, baseUrl).href);
-        } catch (e) {
-          console.warn('Erro ao converter URL:', href);
-        }
-      }
+    doc.querySelectorAll("link[href]").forEach((link) => {
+      const href = link.getAttribute("href");
+      const absolute = absolutizeUrl(href);
+      if (absolute) link.setAttribute("href", absolute);
     });
-    
+
     // Converter scripts
-    doc.querySelectorAll('script[src]').forEach((script) => {
-      const src = script.getAttribute('src');
-      if (src && !src.startsWith('http://') && !src.startsWith('https://') && !src.startsWith('data:')) {
-        try {
-          script.setAttribute('src', new URL(src, baseUrl).href);
-        } catch (e) {
-          console.warn('Erro ao converter URL:', src);
-        }
-      }
+    doc.querySelectorAll("script[src]").forEach((script) => {
+      const src = script.getAttribute("src");
+      const absolute = absolutizeUrl(src);
+      if (absolute) script.setAttribute("src", absolute);
     });
-    
+
     // Converter imagens
-    doc.querySelectorAll('img[src]').forEach((img) => {
-      const src = img.getAttribute('src');
-      if (src && !src.startsWith('http://') && !src.startsWith('https://') && !src.startsWith('data:')) {
-        try {
-          img.setAttribute('src', new URL(src, baseUrl).href);
-        } catch (e) {
-          console.warn('Erro ao converter URL:', src);
-        }
-      }
+    doc.querySelectorAll("img[src]").forEach((img) => {
+      const src = img.getAttribute("src");
+      const absolute = absolutizeUrl(src);
+      if (absolute) img.setAttribute("src", absolute);
     });
-    
+
     // Adicionar meta tag para permitir carregamento de recursos
     const metaCsp = doc.createElement("meta");
     metaCsp.httpEquiv = "Content-Security-Policy";
