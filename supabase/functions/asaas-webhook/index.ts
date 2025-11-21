@@ -18,12 +18,43 @@ interface AsaasWebhookPayload {
   };
 }
 
+// Helper function to verify webhook signature
+async function verifyWebhookSignature(
+  payload: string,
+  signature: string | null,
+  secret: string
+): Promise<boolean> {
+  if (!signature) return false;
+  
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  
+  const signatureBytes = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(payload)
+  );
+  
+  const computedSignature = Array.from(new Uint8Array(signatureBytes))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+  
+  return computedSignature === signature;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const webhookSecret = Deno.env.get("ASAAS_WEBHOOK_SECRET");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -31,9 +62,31 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Configuração do Supabase não encontrada");
     }
 
+    if (!webhookSecret) {
+      console.error("ASAAS_WEBHOOK_SECRET não configurado");
+      throw new Error("Webhook secret não configurado");
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const payload: AsaasWebhookPayload = await req.json();
+    // Get raw body for signature verification
+    const rawBody = await req.text();
+    const signature = req.headers.get("x-asaas-signature") || req.headers.get("asaas-signature");
+
+    // Verify webhook signature
+    const isValid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
+    if (!isValid) {
+      console.error("Invalid webhook signature");
+      return new Response(
+        JSON.stringify({ error: "Invalid signature" }),
+        { 
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        }
+      );
+    }
+
+    const payload: AsaasWebhookPayload = JSON.parse(rawBody);
 
     console.log("Webhook recebido:", payload);
 
