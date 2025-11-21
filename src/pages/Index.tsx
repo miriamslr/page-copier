@@ -38,10 +38,13 @@ const Index = () => {
         
         <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8">
           {/* Header */}
-          <div className="text-center space-y-2 sm:space-y-3">
-            <h1 className="text-lg sm:text-xl md:text-[22px] font-semibold text-foreground px-4">
-              Como vamos dominar o mercado hoje?
+          <div className="text-center space-y-3 sm:space-y-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground px-4">
+              Clone PERFEITAMENTE qualquer página em segundos.
             </h1>
+            <p className="text-base sm:text-lg text-muted-foreground px-4 max-w-3xl mx-auto">
+              Veja o resultado e edite o que quiser. Baixe o HTML puro ou um zip com todos os arquivos separados. Aqui é você quem manda!
+            </p>
           </div>
 
           {/* Main Form */}
