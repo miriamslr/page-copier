@@ -157,21 +157,44 @@ export const CloneForm = () => {
     base.href = baseUrl;
     doc.head.insertBefore(base, doc.head.firstChild);
     
-    // Converter links CSS externos para @import dentro de style tag
-    const linkElements = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'));
-    const styleTag = doc.createElement("style");
+    // Converter todas as URLs relativas para absolutas
+    const urlBase = new URL(baseUrl);
     
-    for (const link of linkElements) {
-      const href = link.getAttribute("href");
-      if (href) {
-        const absoluteUrl = new URL(href, baseUrl).href;
-        styleTag.textContent += `@import url("${absoluteUrl}");\n`;
+    // Converter links CSS
+    doc.querySelectorAll('link[href]').forEach((link) => {
+      const href = link.getAttribute('href');
+      if (href && !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('data:')) {
+        try {
+          link.setAttribute('href', new URL(href, baseUrl).href);
+        } catch (e) {
+          console.warn('Erro ao converter URL:', href);
+        }
       }
-    }
+    });
     
-    if (styleTag.textContent) {
-      doc.head.appendChild(styleTag);
-    }
+    // Converter scripts
+    doc.querySelectorAll('script[src]').forEach((script) => {
+      const src = script.getAttribute('src');
+      if (src && !src.startsWith('http://') && !src.startsWith('https://') && !src.startsWith('data:')) {
+        try {
+          script.setAttribute('src', new URL(src, baseUrl).href);
+        } catch (e) {
+          console.warn('Erro ao converter URL:', src);
+        }
+      }
+    });
+    
+    // Converter imagens
+    doc.querySelectorAll('img[src]').forEach((img) => {
+      const src = img.getAttribute('src');
+      if (src && !src.startsWith('http://') && !src.startsWith('https://') && !src.startsWith('data:')) {
+        try {
+          img.setAttribute('src', new URL(src, baseUrl).href);
+        } catch (e) {
+          console.warn('Erro ao converter URL:', src);
+        }
+      }
+    });
     
     // Adicionar meta tag para permitir carregamento de recursos
     const metaCsp = doc.createElement("meta");
