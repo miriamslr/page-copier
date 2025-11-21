@@ -14,6 +14,7 @@ import { resourceCache } from "@/utils/resourceCache";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { VisualEditor } from "./editor/VisualEditor";
+import { ResponsivePreview } from "./editor/ResponsivePreview";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -37,6 +38,8 @@ export const CloneForm = () => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [requiredCreditsForAction, setRequiredCreditsForAction] = useState(0);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewViewport, setPreviewViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const navigate = useNavigate();
   const { user } = useAuth();
   const { credits, actionCosts, hasCredits, consumeCredits } = useCredits(user?.id);
@@ -130,6 +133,7 @@ export const CloneForm = () => {
       }
       
       setClonedHtml(processedHtml);
+      setShowPreview(true);
       toast.success("Página clonada e processada com sucesso!");
       
       // Atualizar tamanho do cache
@@ -387,7 +391,16 @@ export const CloneForm = () => {
       if (!success) return;
     }
 
+    setShowPreview(false);
     setIsEditing(true);
+  };
+
+  const getPreviewWidth = () => {
+    switch (previewViewport) {
+      case 'mobile': return '375px';
+      case 'tablet': return '768px';
+      default: return '100%';
+    }
   };
 
   if (isEditing) {
@@ -397,6 +410,7 @@ export const CloneForm = () => {
         onSave={(editedHtml) => {
           setClonedHtml(editedHtml);
           setIsEditing(false);
+          setShowPreview(true);
           toast.success("Alterações salvas!");
         }}
         onCancel={() => setIsEditing(false)}
@@ -567,6 +581,64 @@ export const CloneForm = () => {
                     </Button>
                   </div>
                 </div>
+              )}
+
+              {showPreview && (
+                <Card className="overflow-hidden bg-white/60 border border-border backdrop-blur-sm">
+                  <div className="flex items-center justify-between p-3 border-b border-border bg-white/40">
+                    <h3 className="text-sm font-medium">Preview da Página Clonada</h3>
+                    <div className="flex items-center gap-2">
+                      <ResponsivePreview 
+                        viewport={previewViewport} 
+                        onViewportChange={setPreviewViewport} 
+                      />
+                      <Button 
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const newWindow = window.open();
+                          if (newWindow) {
+                            newWindow.document.write(clonedHtml);
+                            newWindow.document.close();
+                          }
+                        }}
+                        className="h-8 px-3 hover:bg-white/60"
+                      >
+                        <Globe className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShowPreview(false)}
+                        className="h-8 px-3 hover:bg-white/60"
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-center p-4 bg-muted/20">
+                    <div style={{ width: getPreviewWidth(), transition: 'width 0.3s ease' }}>
+                      <iframe
+                        srcDoc={clonedHtml}
+                        className="w-full h-[600px] border border-border rounded-md bg-white shadow-sm"
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                        title="Preview da Página Clonada"
+                      />
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {!showPreview && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowPreview(true)}
+                  className="w-full border-border hover:bg-white/60 backdrop-blur-sm"
+                >
+                  <Globe className="mr-2 h-4 w-4" />
+                  Ver Preview
+                </Button>
               )}
               
               <Button
